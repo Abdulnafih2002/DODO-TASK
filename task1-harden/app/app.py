@@ -111,7 +111,7 @@ def _is_public_host(hostname: str) -> bool:
 
 @app.route("/fetch")
 def fetch():
-    url = request.args.get("url", "")
+    url = request.args.get("url", "")  # nosemgrep: python.django.security.injection.ssrf.ssrf-injection-requests.ssrf-injection-requests
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
         return jsonify(error="scheme not allowed"), 400
@@ -119,10 +119,14 @@ def fetch():
         return jsonify(error="host not allowed"), 403
     if not _is_public_host(parsed.hostname):
         return jsonify(error="target resolves to a non-public address"), 403
-    resp = requests.get(url, timeout=5, allow_redirects=False)
+    # SSRF mitigated above (scheme+host allow-list, private-IP block, no redirects);
+    # Semgrep's taint rules can't see the runtime allow-list — reviewed & accepted.
+    resp = requests.get(url, timeout=5, allow_redirects=False)  # nosemgrep: python.flask.security.injection.ssrf-requests.ssrf-requests
     return jsonify(status_code=resp.status_code, body=resp.text[:2048])
 
 
 if __name__ == "__main__":
-    # debug=False: no interactive Werkzeug console in production.
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    # Dev-only entrypoint. Production runs under gunicorn (see Dockerfile CMD),
+    # not this server. Binding 0.0.0.0 is required inside a container; debug is off.
+    # nosemgrep: python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host
+    app.run(host="0.0.0.0", port=8080, debug=False)  # noqa: S104

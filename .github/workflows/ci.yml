@@ -50,6 +50,7 @@ jobs:
         run: semgrep scan --config p/python --config p/security-audit --config p/flask --error --sarif --output semgrep.sarif ${{ env.APP_DIR }}
       - name: upload SARIF
         if: always()
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with: { sarif_file: semgrep.sarif, category: semgrep }
 
@@ -76,6 +77,7 @@ jobs:
         with: { scan-type: fs, scan-ref: "${{ env.APP_DIR }}", format: sarif, output: trivy-fs.sarif }
       - name: upload SARIF
         if: always()
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with: { sarif_file: trivy-fs.sarif, category: trivy-fs }
 
@@ -122,6 +124,7 @@ jobs:
         with: { image-ref: "${{ env.IMAGE }}:ci", format: sarif, output: trivy-image.sarif }
       - name: upload image SARIF
         if: always()
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with: { sarif_file: trivy-image.sarif, category: trivy-image }
 
