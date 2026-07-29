@@ -1,0 +1,39 @@
+########## TASK 1 VERIFICATION EVIDENCE ##########
+
+=== hardened pods running (passed PSS 'restricted') ===
+NAME                          READY   STATUS              RESTARTS   AGE   IP           NODE           NOMINATED NODE   READINESS GATES
+ledger-api-66866d485d-m6l5t   1/1     Running             0          26s   10.244.2.5   dodo-worker    <none>           <none>
+ledger-api-66866d485d-sf2q9   1/1     Running             0          26s   10.244.1.4   dodo-worker2   <none>           <none>
+ledger-api-66866d485d-vv4dc   1/1     Running             0          26s   10.244.2.6   dodo-worker    <none>           <none>
+reporting-847d78fc6c-rdhh9    0/1     ContainerCreating   0          26s   <none>       dodo-worker    <none>           <none>
+
+=== container securityContext (non-root, RO-rootfs, drop ALL, seccomp) ===
+{
+  "allowPrivilegeEscalation": false,
+  "capabilities": {
+    "drop": [
+      "ALL"
+    ]
+  },
+  "readOnlyRootFilesystem": true,
+  "runAsNonRoot": true,
+  "runAsUser": 10001,
+  "seccompProfile": {
+    "type": "RuntimeDefault"
+  }
+}
+
+=== pod runs as UID 10001, cannot write rootfs ===
+uid=10001(app) gid=10001(app) groups=10001(app)
+touch: cannot touch '/pwn': Read-only file system
+rootfs read-only: write denied
+
+=== least-privilege ServiceAccount: CANNOT read secrets / list pods ===
+can-i get secrets: no
+can-i list pods:   no
+can-i get its cm:  yes
+
+=== RBAC personas ===
+developer can delete deploy (expect no): no
+operator can scale deploy (expect yes):  yes
+operator can read secrets (expect no):   no

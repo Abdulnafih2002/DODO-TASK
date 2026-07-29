@@ -1,0 +1,33 @@
+# ArgoCD Application — GitOps source of truth for the payments workload.
+# Git is authoritative: automated sync + selfHeal reverts any manual `kubectl edit`
+# (drift), and prune deletes resources removed from Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ledger-api
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Abdulnafih2002/DODO-TASK.git
+    targetRevision: main
+    path: task1-harden/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: payments
+  syncPolicy:
+    automated:
+      prune: true       # delete resources dropped from Git
+      selfHeal: true    # revert out-of-band drift back to Git state
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=false     # namespace is managed by 00-namespace.yaml
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff: { duration: 5s, factor: 2, maxDuration: 3m }
+  # The SOPS-encrypted Secret is intentionally NOT synced by ArgoCD in this repo
+  # layout (it lives in ../secrets and is applied via `sops -d | kubectl apply`).
+  # In production, use the argocd-vault-plugin or a KSOPS plugin to decrypt at sync.

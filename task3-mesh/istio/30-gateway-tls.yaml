@@ -1,0 +1,50 @@
+# Bonus: expose ledger-api through an Istio Ingress Gateway with TLS termination.
+# TLS is terminated at the gateway; traffic to the pod stays inside the mTLS mesh.
+# Create the cert secret first (self-signed for the demo):
+#   openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+#     -keyout tls.key -out tls.crt -subj "/CN=ledger.dodo.local"
+#   kubectl -n istio-system create secret tls ledger-tls --cert=tls.crt --key=tls.key
+---
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: ledger-gateway
+  namespace: payments
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: ledger-tls   # secret in istio-system
+      hosts:
+        - "ledger.dodo.local"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "ledger.dodo.local"
+      tls:
+        httpsRedirect: true
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: ledger-api
+  namespace: payments
+spec:
+  hosts:
+    - "ledger.dodo.local"
+  gateways:
+    - ledger-gateway
+  http:
+    - route:
+        - destination:
+            host: ledger-api
+            port:
+              number: 8080

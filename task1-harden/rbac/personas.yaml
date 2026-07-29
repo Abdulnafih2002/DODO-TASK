@@ -1,0 +1,75 @@
+# Bonus: developer / operator / admin personas, least privilege, scoped to the
+# `payments` namespace. Bind these to real users/groups via the RoleBindings at
+# the bottom (subjects are illustrative — swap for your OIDC groups).
+#
+# developer : read-only observability (see pods, read logs) — cannot exec/edit/delete.
+# operator  : run day-2 ops (rollout restart, scale, read) — cannot edit RBAC/secrets.
+# admin     : full control within the namespace only — never cluster-scoped.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: persona-developer
+  namespace: payments
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "configmaps", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: persona-operator
+  namespace: payments
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "configmaps", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["update", "patch"]
+  # rollout restart works by patching the pod template; no delete of RBAC/secrets.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: persona-admin
+  namespace: payments
+rules:
+  - apiGroups: ["", "apps", "networking.k8s.io", "rbac.authorization.k8s.io"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+# Example bindings — replace subjects with your identity-provider groups.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: developers
+  namespace: payments
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: persona-developer}
+subjects:
+  - {apiGroup: rbac.authorization.k8s.io, kind: Group, name: payments-developers}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: operators
+  namespace: payments
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: persona-operator}
+subjects:
+  - {apiGroup: rbac.authorization.k8s.io, kind: Group, name: payments-operators}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: admins
+  namespace: payments
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: persona-admin}
+subjects:
+  - {apiGroup: rbac.authorization.k8s.io, kind: Group, name: payments-admins}

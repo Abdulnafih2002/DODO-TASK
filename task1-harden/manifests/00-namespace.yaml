@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: payments
+  labels:
+    # Pod Security Standards enforced at the namespace (Bonus).
+    # `restricted` = the most locked-down built-in profile: blocks running as
+    # root, privilege escalation, host namespaces, and requires seccomp.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    # Bring the namespace into the Istio mesh (Task 3).
+    istio-injection: enabled

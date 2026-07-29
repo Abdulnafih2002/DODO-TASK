@@ -1,0 +1,12 @@
+# mTLS STRICT for the whole payments namespace.
+# With STRICT, sidecars refuse any plaintext (non-mTLS) connection. Prove it with:
+#   istioctl authn tls-check <pod>.payments   (expects STRICT / OK)
+# and a plaintext curl from a NON-injected pod -> connection reset.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: payments
+spec:
+  mtls:
+    mode: STRICT

@@ -1,0 +1,121 @@
+# Kyverno admission guardrails. These reject non-compliant workloads at admission
+# time — the cluster refuses to create them, so hardening is enforced, not hoped for.
+#
+# Scope note: policies exclude kube-system / kyverno / istio-system so platform
+# components are not broken. Enforcement is demonstrated against the `payments` ns.
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-run-as-root
+  annotations:
+    policies.kyverno.io/title: Disallow running as root
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-run-as-non-root
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+              namespaces: ["payments"]
+      validate:
+        message: "Containers must set runAsNonRoot=true (no root containers)."
+        pattern:
+          spec:
+            =(securityContext):
+              =(runAsNonRoot): "true"
+            containers:
+              - =(securityContext):
+                  runAsNonRoot: "true"
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow :latest and untagged images
+    policies.kyverno.io/severity: medium
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources: {kinds: ["Pod"], namespaces: ["payments"]}
+      validate:
+        message: "An explicit non-:latest image tag is required."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"
+    - name: require-tag-present
+      match:
+        any:
+          - resources: {kinds: ["Pod"], namespaces: ["payments"]}
+      validate:
+        message: "Image must be tagged (registry/name:tag)."
+        pattern:
+          spec:
+            containers:
+              - image: "*:*"
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-hardened-securitycontext
+  annotations:
+    policies.kyverno.io/title: Require drop-ALL caps + read-only rootfs + seccomp
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-drop-all-and-ro-rootfs
+      match:
+        any:
+          - resources: {kinds: ["Pod"], namespaces: ["payments"]}
+      validate:
+        message: "Containers must drop ALL capabilities, run read-only rootfs, and disable privilege escalation."
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  readOnlyRootFilesystem: true
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop: ["ALL"]
+---
+# Image signature verification (Cosign keyless from the Task 2 workflow).
+# Audit mode locally so the kind-loaded image is not blocked; flip to Enforce in
+# a real registry-backed cluster. This proves the SUPPLY-CHAIN gate exists.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signature
+  annotations:
+    policies.kyverno.io/title: Reject unsigned images (keyless cosign)
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Audit
+  background: false
+  rules:
+    - name: verify-ghcr-signature
+      match:
+        any:
+          - resources: {kinds: ["Pod"], namespaces: ["payments"]}
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/abdulnafih2002/ledger-api*"
+          mutateDigest: false   # required when validationFailureAction is Audit
+          verifyDigest: false
+          attestors:
+            - entries:
+                - keyless:
+                    subject: "https://github.com/Abdulnafih2002/DODO-TASK/.github/workflows/*"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: https://rekor.sigstore.dev

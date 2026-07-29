@@ -1,0 +1,21 @@
+# gitleaks config for this repo.
+# We extend the default rules (so real secrets are still caught), and allowlist ONLY
+# the assignment starter's known, already-public REDACTED placeholders — which appear
+# intentionally in the "before" baseline (_original/) and as pen-test PoC evidence.
+# This keeps the secrets gate meaningful for any NEW/real secret.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Starter placeholder secrets (already public in the assignment) + pentest evidence"
+regexes = [
+  '''sk_live_9f3a2b7c1e4d8REDACTED''',
+  '''P@ssw0rd123''',
+  '''b8f2c1a9e7d34f60a2c5b8e1f0d9a6c3''',   # demo TOKEN_SALT
+]
+paths = [
+  '''_original/.*''',
+  '''task4-recon-pentest/pentest/evidence/.*''',
+  '''task4-recon-pentest/REPORT\.md''',
+  '''.*\.enc\.yaml$''',                      # SOPS ciphertext is safe by design
+]

@@ -1,0 +1,38 @@
+# Zero-trust authorization, keyed on WORKLOAD IDENTITY (SPIFFE/service account),
+# never on IP. Two policies:
+#
+#   1) default-deny  — an AuthorizationPolicy with an empty spec denies ALL traffic
+#      in the namespace. Nothing is allowed unless explicitly permitted.
+#   2) allow-reporting-to-ledger — the ONLY caller permitted to reach ledger-api is
+#      the `reporting` service account. Its SPIFFE identity is
+#      spiffe://cluster.local/ns/payments/sa/reporting.
+#
+# Result: reporting -> ledger-api = 200; any other identity = 403 (RBAC: access denied).
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: default-deny
+  namespace: payments
+spec:
+  {}   # empty spec == deny-all for the namespace
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-reporting-to-ledger
+  namespace: payments
+spec:
+  selector:
+    matchLabels:
+      app: ledger-api
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/payments/sa/reporting"
+      to:
+        - operation:
+            methods: ["GET", "POST"]
+            paths: ["/health", "/tokenize", "/transactions", "/import", "/fetch"]

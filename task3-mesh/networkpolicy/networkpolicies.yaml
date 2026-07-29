@@ -1,0 +1,75 @@
+# Kubernetes NetworkPolicy — L3/L4 defense-in-depth UNDER the Istio mesh.
+#
+# What each layer catches:
+#   * NetworkPolicy (this file) = kernel/CNI enforced pod-to-pod reachability. It
+#     stops packets that NEVER reach an Envoy sidecar — a compromised or
+#     sidecar-less pod, port scans, lateral movement. It is identity-blind (works
+#     on pod selectors / namespaces / CIDRs) but cannot be bypassed by disabling a
+#     sidecar because it lives in the CNI, not the pod.
+#   * Istio AuthorizationPolicy = L7, per-request, cryptographic workload identity
+#     (SPIFFE). It stops a spoofed source that IS on the network but lacks the right
+#     SA cert, and can gate by HTTP method/path. It cannot see traffic that bypasses
+#     the sidecar.
+# Together: NetworkPolicy shrinks the reachable surface; Istio authenticates who is
+# actually calling. Neither alone is sufficient.
+---
+# 1) Default-deny ALL ingress + egress for every pod in the namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: payments
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+# 2) Allow DNS egress (needed by every pod).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: payments
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# 3) ledger-api may RECEIVE traffic only from `reporting` pods and the ingress
+#    controller, on 8080.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ledger-api-ingress
+  namespace: payments
+spec:
+  podSelector:
+    matchLabels: { app: ledger-api }
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: reporting } }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: ingress-nginx }
+      ports:
+        - { protocol: TCP, port: 8080 }
+---
+# 4) reporting may SEND traffic only to ledger-api on 8080 (plus DNS from #2).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: reporting-egress
+  namespace: payments
+spec:
+  podSelector:
+    matchLabels: { app: reporting }
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app: ledger-api } }
+      ports:
+        - { protocol: TCP, port: 8080 }

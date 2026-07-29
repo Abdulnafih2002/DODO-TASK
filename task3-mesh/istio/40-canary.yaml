@@ -1,0 +1,37 @@
+# Bonus: canary release via DestinationRule subsets + weighted VirtualService.
+# Requires a second Deployment `ledger-api-v2` whose pods carry label version: v2
+# (and the v1 Deployment labelled version: v1). 90% of traffic stays on v1, 10%
+# shifts to v2; bump the weight as confidence grows, or roll back to 100/0.
+#
+# NOTE: illustrative — apply after deploying a v2 workload. Kept separate from the
+# core Task-3 files so the mesh demo runs with a single version by default.
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: ledger-api
+  namespace: payments
+spec:
+  host: ledger-api
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+  subsets:
+    - name: v1
+      labels: { version: v1 }
+    - name: v2
+      labels: { version: v2 }
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: ledger-api-canary
+  namespace: payments
+spec:
+  hosts: ["ledger-api"]
+  http:
+    - route:
+        - destination: { host: ledger-api, subset: v1 }
+          weight: 90
+        - destination: { host: ledger-api, subset: v2 }
+          weight: 10

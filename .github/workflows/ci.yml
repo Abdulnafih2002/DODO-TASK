@@ -1,0 +1,160 @@
+name: ledger-api-secure-supply-chain
+
+# Secure delivery pipeline: scan -> build -> scan image -> sign + attest -> push.
+# Security is enforced by GATES here, not by good intentions. Fail policy per job
+# is documented in task2-cicd/README.md and echoed in each step below.
+#
+# Free GitHub runners + GHCR only. No cloud account.
+
+on:
+  push:
+    branches: [main]
+    paths: ["task1-harden/app/**", ".github/workflows/ci.yml"]
+  pull_request:
+    paths: ["task1-harden/app/**", ".github/workflows/ci.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write        # push to GHCR
+  id-token: write        # cosign keyless (OIDC)
+  security-events: write # upload SARIF to the Security tab
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/ledger-api
+  APP_DIR: task1-harden/app
+
+jobs:
+  # ---------------------------------------------------------------- GATE 1: secrets
+  secrets-scan:
+    name: Gitleaks (secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      # FAIL POLICY: hard-block. Any verified secret fails the pipeline.
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "true"
+
+  # ---------------------------------------------------------------- GATE 2: SAST
+  sast:
+    name: Semgrep (SAST)
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      # FAIL POLICY: hard-block on ERROR severity; medium/low warn only.
+      - name: semgrep scan
+        run: semgrep scan --config p/python --config p/security-audit --config p/flask --error --sarif --output semgrep.sarif ${{ env.APP_DIR }}
+      - name: upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: semgrep.sarif, category: semgrep }
+
+  # ---------------------------------------------------------------- GATE 3: deps/CVE
+  dependency-scan:
+    name: Trivy (dependencies / CVE)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # FAIL POLICY: hard-block CRITICAL/HIGH that have a fix; unfixed -> warn
+      # (see .trivyignore with justification+expiry). This gate is fs-mode.
+      - name: trivy fs (gating)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ env.APP_DIR }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          trivyignores: .trivyignore
+      - name: trivy fs (SARIF, non-gating full report)
+        if: always()
+        uses: aquasecurity/trivy-action@0.24.0
+        with: { scan-type: fs, scan-ref: "${{ env.APP_DIR }}", format: sarif, output: trivy-fs.sarif }
+      - name: upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: trivy-fs.sarif, category: trivy-fs }
+
+  # ---------------------------------------------------------------- BUILD + SIGN
+  build-sign-push:
+    name: Build, scan image, sign, attest, push
+    runs-on: ubuntu-latest
+    needs: [secrets-scan, sast, dependency-scan]   # all gates must pass first
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sigstore/cosign-installer@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build locally first so we can scan BEFORE publishing.
+      - name: build (load)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.APP_DIR }}
+          load: true
+          tags: ${{ env.IMAGE }}:ci
+          provenance: false
+
+      # FAIL POLICY: hard-block CRITICAL/HIGH (fixed) in the built image.
+      - name: trivy image scan (gating)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ env.IMAGE }}:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: image SARIF (non-gating)
+        if: always()
+        uses: aquasecurity/trivy-action@0.24.0
+        with: { image-ref: "${{ env.IMAGE }}:ci", format: sarif, output: trivy-image.sarif }
+      - name: upload image SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: trivy-image.sarif, category: trivy-image }
+
+      # Only signed, scanned images get published.
+      - name: push
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.APP_DIR }}
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:0.1.0
+            ${{ env.IMAGE }}:${{ github.sha }}
+          provenance: true          # SLSA provenance attached to the image
+          sbom: true                # SBOM attestation
+
+      # Keyless signing (OIDC): no long-lived keys. Identity == this workflow.
+      - name: cosign sign (keyless)
+        run: cosign sign --yes ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
+
+      # SLSA-style provenance attestation, signed keyless.
+      - name: attest build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      # Bonus artifact: proof the image is signed by THIS workflow.
+      - name: cosign verify (proof)
+        run: |
+          cosign verify ${{ env.IMAGE }}@${{ steps.push.outputs.digest }} \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" | tee cosign-verify.txt
+      - uses: actions/upload-artifact@v4
+        with: { name: cosign-verify, path: cosign-verify.txt }

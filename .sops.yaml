@@ -1,0 +1,7 @@
+# SOPS creation rules. Any file matching the regex is encrypted to the age
+# recipient below. Only `data`/`stringData` values are encrypted; YAML keys and
+# structure stay readable so the file still diffs and validates as a K8s manifest.
+creation_rules:
+  - path_regex: task1-harden/secrets/.*\.enc\.yaml$
+    encrypted_regex: "^(data|stringData)$"
+    age: age1h25e4f8dlwsqkjjlhdanag92jr55qgadeygrcadn06dgk8789g0sc528gt

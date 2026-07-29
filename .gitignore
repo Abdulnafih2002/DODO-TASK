@@ -1,0 +1,28 @@
+# --- Secrets / keys: NEVER commit ---
+*.age
+*.agekey
+age-key*.txt
+keys.txt
+*.dec.yaml            # any decrypted SOPS output
+*decrypted*
+tls.key
+tls.crt
+*.pem
+kubeconfig
+.env
+.env.*
+
+# --- Pen-test / recon raw output that may contain sensitive data ---
+task4-recon-pentest/**/raw/
+*.burp
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- Misc ---
+.DS_Store
+*.log
+tmp/

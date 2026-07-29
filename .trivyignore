@@ -1,0 +1,14 @@
+# Trivy ignore file — the "CVE with no fix yet" policy in practice.
+#
+# Rule: we HARD-BLOCK on CRITICAL/HIGH that have a fixed version (ignore-unfixed:true
+# already drops unfixed ones from the gate). When we must accept a fixable finding
+# temporarily, it goes here WITH a justification and an expiry date, and is tracked
+# as a ticket. An empty/rationale-only file means "nothing is being suppressed."
+#
+# Format: <CVE-ID> then a comment. Example of how an accepted-with-expiry entry looks:
+#
+# CVE-2024-XXXXX  # accepted 2026-07-29, expires 2026-08-29: no fixed release upstream,
+#                 # not reachable from our code path (transitive, dev-only). Ticket SEC-123.
+#
+# Currently: no suppressions. The hardened image upgrades every starter dependency to a
+# patched release, so the gate is expected to pass with zero exceptions.
