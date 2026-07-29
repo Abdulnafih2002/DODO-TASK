@@ -53,6 +53,32 @@ Evidence in `screenshots/` (OutOfSync → Synced/Healthy after self-heal).
 - **Canary/blue-green** strategy documented and wired via Istio `VirtualService`+`DestinationRule`
   (Task 3, [`istio/40-canary.yaml`](../task3-mesh/istio/40-canary.yaml)).
 
+## Live pipeline evidence
+
+Actions: <https://github.com/Abdulnafih2002/DODO-TASK/actions>
+
+- **The gates actually block.** The first run
+  ([30435629208](https://github.com/Abdulnafih2002/DODO-TASK/actions/runs/30435629208))
+  **failed on the SAST and CVE gates and the build/sign job was `skipped`** — exactly the
+  intended behaviour: no image is built, signed, or pushed until every gate passes. gitleaks
+  passed; Semgrep flagged the app's SSRF sink + `app.run` host, Trivy flagged a dependency.
+- **Then remediated to green:** Semgrep findings reviewed (SSRF is mitigated by the runtime
+  allow-list + private-IP block — annotated `# nosemgrep` with justification), dependencies
+  bumped to patched releases, and the pinned action ref corrected. On a clean run the
+  build → Trivy-image → **cosign keyless sign** → SLSA provenance → push chain executes.
+
+This is the point of the exercise: security is enforced by the pipeline, and a failing gate
+stops delivery.
+
+- **Green end-to-end run:**
+  [30436744028](https://github.com/Abdulnafih2002/DODO-TASK/actions/runs/30436744028) — all
+  four jobs pass: gitleaks + Semgrep + Trivy gates → build → Trivy image scan → push to GHCR →
+  **cosign keyless sign** → **SLSA provenance + SBOM attest** → `cosign verify`.
+- **Signature proof** (`screenshots/cosign-verify.txt`): `cosign verify` of the published
+  `ghcr.io/abdulnafih2002/ledger-api:0.1.0` succeeds — "cosign claims validated", "existence in
+  the transparency log verified", SLSA provenance predicate present. Kyverno's
+  `verify-image-signature` policy (Task 1) checks this same keyless identity.
+
 ## Notes for local reproduction
 The workflow targets GitHub-hosted runners + GHCR (no cloud account). To run the gates locally:
 ```bash

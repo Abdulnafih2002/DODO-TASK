@@ -1,0 +1,44 @@
+########## LIVE CLUSTER STATE — Wed Jul 29 14:06:05 IST 2026 ##########
+=== nodes ===
+NAME                 STATUS   ROLES           AGE   VERSION
+dodo-control-plane   Ready    control-plane   30m   v1.36.1
+dodo-worker          Ready    <none>          30m   v1.36.1
+dodo-worker2         Ready    <none>          30m   v1.36.1
+
+=== payments workload (2/2 = app + istio sidecar) ===
+NAME                          READY   STATUS    RESTARTS   AGE
+ledger-api-6c9c8745c8-27g68   2/2     Running   0          15m
+ledger-api-6c9c8745c8-bx7lc   2/2     Running   0          16m
+ledger-api-6c9c8745c8-fstnz   2/2     Running   0          14m
+reporting-7c4889c667-4wsv5    2/2     Running   0          16m
+
+=== control planes: kyverno / istio ===
+kyverno-admission-controller-f849f45fd-whltc Running
+kyverno-background-controller-5bd5c4465b-jzlpv Running
+kyverno-cleanup-controller-847b887d6c-bmtmx Running
+kyverno-reports-controller-75bc4c4784-57xn7 Running
+istio-cni-node-4kpnl Running
+istio-cni-node-bp8sg Running
+istio-cni-node-j5x79 Running
+istiod-6fbb74b9c9-xqhxd Running
+
+=== Kyverno policies (enforce) ===
+NAME                               ADMISSION   BACKGROUND   READY   AGE   MESSAGE
+disallow-latest-tag                true        true         True    24m   Ready
+disallow-run-as-root               true        true         True    24m   Ready
+require-hardened-securitycontext   true        true         True    24m   Ready
+verify-image-signature             true        false        True    23m   Ready
+
+=== Istio zero-trust objects ===
+NAME                                           MODE     AGE
+peerauthentication.security.istio.io/default   STRICT   19m
+
+NAME                                                              ACTION   AGE
+authorizationpolicy.security.istio.io/allow-reporting-to-ledger   ALLOW    19m
+authorizationpolicy.security.istio.io/default-deny                         19m
+
+NAME                                                 POD-SELECTOR     AGE
+networkpolicy.networking.k8s.io/allow-dns-egress     <none>           12m
+networkpolicy.networking.k8s.io/default-deny-all     <none>           12m
+networkpolicy.networking.k8s.io/ledger-api-ingress   app=ledger-api   12m
+networkpolicy.networking.k8s.io/reporting-egress     app=reporting    12m
