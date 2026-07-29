@@ -22,7 +22,8 @@ permissions:
   security-events: write # upload SARIF to the Security tab
 
 env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/ledger-api
+  # GHCR requires a lowercase repository name (owner "Abdulnafih2002" is mixed-case).
+  IMAGE: ghcr.io/abdulnafih2002/ledger-api
   APP_DIR: task1-harden/app
 
 jobs:
