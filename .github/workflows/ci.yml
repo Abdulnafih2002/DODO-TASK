@@ -18,6 +18,7 @@ permissions:
   contents: read
   packages: write        # push to GHCR
   id-token: write        # cosign keyless (OIDC)
+  attestations: write    # actions/attest-build-provenance (SLSA)
   security-events: write # upload SARIF to the Security tab
 
 env:
@@ -60,21 +61,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Install the Trivy CLI directly (the composite trivy-action pins a broken
+      # setup-trivy release; the CLI is reliable and reproducible).
+      - name: install trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
       # FAIL POLICY: hard-block CRITICAL/HIGH that have a fix; unfixed -> warn
-      # (see .trivyignore with justification+expiry). This gate is fs-mode.
+      # (see .trivyignore with justification+expiry).
       - name: trivy fs (gating)
-        uses: aquasecurity/trivy-action@v0.28.0
-        with:
-          scan-type: fs
-          scan-ref: ${{ env.APP_DIR }}
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: "1"
-          trivyignores: .trivyignore
+        run: trivy fs --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 --ignorefile .trivyignore ${{ env.APP_DIR }}
       - name: trivy fs (SARIF, non-gating full report)
         if: always()
-        uses: aquasecurity/trivy-action@v0.28.0
-        with: { scan-type: fs, scan-ref: "${{ env.APP_DIR }}", format: sarif, output: trivy-fs.sarif }
+        run: trivy fs --format sarif --output trivy-fs.sarif ${{ env.APP_DIR }} || true
       - name: upload SARIF
         if: always()
         continue-on-error: true
@@ -92,6 +89,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: sigstore/cosign-installer@v3
       - uses: docker/setup-buildx-action@v3
+      - name: install trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
 
       - name: log in to GHCR
         uses: docker/login-action@v3
@@ -111,17 +110,11 @@ jobs:
 
       # FAIL POLICY: hard-block CRITICAL/HIGH (fixed) in the built image.
       - name: trivy image scan (gating)
-        uses: aquasecurity/trivy-action@v0.28.0
-        with:
-          image-ref: ${{ env.IMAGE }}:ci
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: "1"
+        run: trivy image --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 ${{ env.IMAGE }}:ci
 
       - name: image SARIF (non-gating)
         if: always()
-        uses: aquasecurity/trivy-action@v0.28.0
-        with: { image-ref: "${{ env.IMAGE }}:ci", format: sarif, output: trivy-image.sarif }
+        run: trivy image --format sarif --output trivy-image.sarif ${{ env.IMAGE }}:ci || true
       - name: upload image SARIF
         if: always()
         continue-on-error: true
