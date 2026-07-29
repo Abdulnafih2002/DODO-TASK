@@ -63,7 +63,7 @@ jobs:
       # FAIL POLICY: hard-block CRITICAL/HIGH that have a fix; unfixed -> warn
       # (see .trivyignore with justification+expiry). This gate is fs-mode.
       - name: trivy fs (gating)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           scan-type: fs
           scan-ref: ${{ env.APP_DIR }}
@@ -73,7 +73,7 @@ jobs:
           trivyignores: .trivyignore
       - name: trivy fs (SARIF, non-gating full report)
         if: always()
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with: { scan-type: fs, scan-ref: "${{ env.APP_DIR }}", format: sarif, output: trivy-fs.sarif }
       - name: upload SARIF
         if: always()
@@ -111,7 +111,7 @@ jobs:
 
       # FAIL POLICY: hard-block CRITICAL/HIGH (fixed) in the built image.
       - name: trivy image scan (gating)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: ${{ env.IMAGE }}:ci
           severity: CRITICAL,HIGH
@@ -120,7 +120,7 @@ jobs:
 
       - name: image SARIF (non-gating)
         if: always()
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with: { image-ref: "${{ env.IMAGE }}:ci", format: sarif, output: trivy-image.sarif }
       - name: upload image SARIF
         if: always()
