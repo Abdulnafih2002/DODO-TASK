@@ -18,7 +18,12 @@ cluster + GitHub Actions. No cloud account.
 | **4 — Recon & Pentest** | [`task4-recon-pentest/`](task4-recon-pentest/) | Passive recon playbook + full **pen-test report** ([`REPORT.md`](task4-recon-pentest/REPORT.md)): 7 findings (1 Critical, 3 High) with CVSS v3.1, PoCs, an RCE→secret chain, and a **retest** proving closure. |
 
 ## Architecture
-See [`docs/architecture/`](docs/architecture/) (`architecture.md`, rendered from Mermaid).
+See [`docs/architecture/`](docs/architecture/): **[`architecture.drawio`](docs/architecture/architecture.drawio)**
+(editable draw.io), `architecture.png` (rendered image), and `architecture.md` (Mermaid, renders on GitHub).
+
+## Screenshots / evidence
+See **[SCREENSHOTS.md](SCREENSHOTS.md)** — a checklist of what to capture per task (command → what it
+shows). Raw terminal captures are already committed under each task's `screenshots/` and `evidence/`.
 
 ## The target
 `ledger-api` (Python/Flask) — endpoints `/health`, `/tokenize`, `/transactions`, `/import`,
