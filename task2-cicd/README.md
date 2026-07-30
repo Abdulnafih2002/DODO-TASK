@@ -74,7 +74,7 @@ stops delivery.
   [30436744028](https://github.com/Abdulnafih2002/DODO-TASK/actions/runs/30436744028) — all
   four jobs pass: gitleaks + Semgrep + Trivy gates → build → Trivy image scan → push to GHCR →
   **cosign keyless sign** → **SLSA provenance + SBOM attest** → `cosign verify`.
-- **Signature proof** (`screenshots/cosign-verify.txt`): `cosign verify` of the published
+- **Signature proof** (`screenshots/cosign-verify.png`): `cosign verify` of the published
   `ghcr.io/abdulnafih2002/ledger-api:0.1.0` succeeds — "cosign claims validated", "existence in
   the transparency log verified", SLSA provenance predicate present. Kyverno's
   `verify-image-signature` policy (Task 1) checks this same keyless identity.

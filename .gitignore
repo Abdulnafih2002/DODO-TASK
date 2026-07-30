@@ -26,3 +26,12 @@ venv/
 .DS_Store
 *.log
 tmp/
+
+# --- Local-only study aids (not part of the submission) ---
+PROJECT-GUIDE.md
+PROJECT-GUIDE.html
+LEARN-FROM-ZERO.md
+RUN-AND-TEST.md
+SCREENSHOTS.md
+# Confidential assessment brief — never publish
+DevSecOps-Assignment-*.pdf

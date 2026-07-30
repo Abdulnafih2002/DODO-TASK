@@ -22,8 +22,9 @@ See [`docs/architecture/`](docs/architecture/): **[`architecture.drawio`](docs/a
 (editable draw.io), `architecture.png` (rendered image), and `architecture.md` (Mermaid, renders on GitHub).
 
 ## Screenshots / evidence
-See **[SCREENSHOTS.md](SCREENSHOTS.md)** — a checklist of what to capture per task (command → what it
-shows). Raw terminal captures are already committed under each task's `screenshots/` and `evidence/`.
+Working proof for each task lives in the per-task `screenshots/` folders, plus the live GitHub
+**Actions** pipeline run (see [`task2-cicd/`](task2-cicd/)). Task 4 PoCs are documented in
+[`REPORT.md`](task4-recon-pentest/REPORT.md).
 
 ## The target
 `ledger-api` (Python/Flask) — endpoints `/health`, `/tokenize`, `/transactions`, `/import`,
@@ -60,9 +61,10 @@ cd task4-recon-pentest/pentest/target && docker build -t ledger-api:starter . &&
 ```
 
 ## Evidence
-Per-task `screenshots/`/`evidence/` folders hold captured terminal output: hardened pod
-securityContext, Kyverno rejecting the insecure deploy, `istioctl authn tls-check`,
-authorized-200-vs-unauthorized-403, ArgoCD self-heal, and every pen-test PoC + retest.
+Screenshots for each control live in the per-task `screenshots/` folders — hardened pod
+securityContext, Kyverno rejecting the insecure deploy, mTLS STRICT with authorized-200-vs-403,
+and the pen-test PoCs + retest. The Task 2 pipeline is independently verifiable from its live
+GitHub Actions run.
 
 ## Secrets hygiene
 Only the **SOPS-encrypted** secret ciphertext is committed. The age private key lives at
