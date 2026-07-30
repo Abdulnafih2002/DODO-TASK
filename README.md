@@ -18,8 +18,9 @@ cluster + GitHub Actions. No cloud account.
 | **4 — Recon & Pentest** | [`task4-recon-pentest/`](task4-recon-pentest/) | Passive recon playbook + full **pen-test report** ([`REPORT.md`](task4-recon-pentest/REPORT.md)): 7 findings (1 Critical, 3 High) with CVSS v3.1, PoCs, an RCE→secret chain, and a **retest** proving closure. |
 
 ## Architecture
-See [`docs/architecture/`](docs/architecture/): **[`architecture.drawio`](docs/architecture/architecture.drawio)**
-(editable draw.io), `architecture.png` (rendered image), and `architecture.md` (Mermaid, renders on GitHub).
+![Architecture](docs/architecture/architecture.png)
+
+Editable source: [`docs/architecture/architecture.drawio`](docs/architecture/architecture.drawio) (draw.io).
 
 ## Screenshots / evidence
 Working proof for each task lives in the per-task `screenshots/` folders, plus the live GitHub
