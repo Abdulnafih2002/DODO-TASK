@@ -1,5 +1,9 @@
 # Architecture
 
+**Rendered image:** ![Architecture](architecture.png)
+**Editable source:** [`architecture.drawio`](architecture.drawio) (open in draw.io / diagrams.net) ·
+Mermaid sources below render on GitHub.
+
 ## End-to-end: build → admit → run → mesh
 
 ```mermaid
