@@ -71,8 +71,3 @@ Only the **SOPS-encrypted** secret ciphertext is committed. The age private key 
 `~/.config/sops/age/keys.txt` (and would be a CI/GitHub secret) — never in the repo.
 `_original/` keeps the **insecure** starter manifests on purpose (the "before" baseline and the
 artifact Kyverno rejects); the `sk_live_…REDACTED` string there is the starter's own placeholder.
-
-## What I'd do with more time
-Wire the ArgoCD Vault/KSOPS plugin to decrypt secrets at sync; add a v2 deployment to run the
-canary live; push real SARIF to the Security tab via a merged PR; expand recon into a scored
-attack-surface inventory; add policy unit tests (Kyverno CLI `test`) and Conftest in CI.
